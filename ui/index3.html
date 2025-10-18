@@ -237,7 +237,7 @@
 
   <script>
     (function(){
-      const API = (window.API_BASE || 'http://127.0.0.1:8000').replace(/\/$/, '');
+      const API = (window.API_BASE ?? '').replace(/\/$/, '');
       const CONF_THRESHOLD = 0.70;
       const LOW_CONF_MSG = 'Yanlış/Yetersiz görsel olabilir. Lütfen daha net/odaklı bir fotoğraf yükleyin.';
 
