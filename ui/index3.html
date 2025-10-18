@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VCTS • Hasta/Doktor Arayüzü (SPA)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --muted: #a8b3c3; 
+      --text: #e5e7eb;
+      --accent: #4ea1ff;
+      --ok: #22c55e;
+      --bad: #ef4444;
+      --warn: #f59e0b;
+      --line: #263041;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans"; background: var(--bg); color: var(--text); }
+    .container { max-width: 1120px; margin: 28px auto; padding: 0 16px; }
+    .row { display: flex; gap: 10px; align-items: center; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    h2 { margin: 0 8px 12px 0; font-size: 18px; display:flex; align-items:center; gap:8px; }
+
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input, select, textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0b1220; color: var(--text); outline: none; }
+    input::placeholder, textarea::placeholder { color: #6b7280; }
+    textarea { min-height: 86px; resize: vertical; }
+    button { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: #182235; color: var(--text); cursor: pointer; }
+    button.primary { background: var(--accent); color: #020617; border-color: #1e293b; font-weight: 600; }
+    button.ghost { background: #0b1220; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .hidden { display: none !important; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .kv { display: block; }
+
+    .case-row { display: grid; grid-template-columns: 160px 1fr 80px; gap: 8px; padding: 10px; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .case-row:hover { background: rgba(78,161,255,.06); }
+    .badge { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .badge.ok { background: rgba(34,197,94,.15); color: #86efac; }
+    .badge.bad { background: rgba(239,68,68,.15); color: #fecaca; }
+    .badge.neutral { background: rgba(245,158,11,.15); color: #fde68a; }
+    .badge.dim { background: rgba(148,163,184,.15); color: #cbd5e1; }
+
+    .topbar { display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .tabs { display: inline-flex; gap: 6px; }
+    .tabs button { background:#0b1220; }
+    .tabs button.active { background:#1b2844; border-color:#2a3b5a; }
+
+    .img { max-height: 180px; border-radius: 8px; border:1px solid var(--line); }
+    .hr { height:1px; background: var(--line); margin: 8px 0 0; }
+    .split { display:grid; grid-template-columns: 1.1fr .9fr; gap: 14px; }
+    .detail-row { display:grid; grid-template-columns: 120px 1fr; gap:8px; margin: 6px 0; }
+    
+    .toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10001;
+
+      background: rgba(2, 6, 23, 0.92);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+
+      padding: 16px 20px;
+      border-radius: 14px;
+      border: 1px solid #263041;
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+
+      font-size: 15px;
+      line-height: 1.35;
+      max-width: 560px;
+      width: max-content;
+      text-align: center;
+    }
+
+    #toastOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.55);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      z-index: 10000;
+    }
+
+    .topbar .brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+#appLogo {
+  height: 90px;
+  width: auto;
+  display: block;
+  max-height: none;
+}
+
+
+    .cols { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+    .list { max-height: 420px; overflow:auto; border:1px solid var(--line); border-radius:10px; }
+    .soft { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <a href="#" class="brand">
+  <img src="/static/vctslogo2.png" alt="VCTS" style="height:90px; width:auto; object-fit:contain;">
+
+
+</a>
+      <div class="row">
+        <div class="muted" id="healthBadge">Sunucu: kontrol ediliyor…</div>
+        <button id="refreshHealth" class="ghost" type="button">Yenile</button>
+      </div>
+    </div>
+
+    <section id="auth" class="card">
+      <div class="tabs" role="tablist">
+        <button id="tabPatient" class="active" type="button">Hasta girişi</button>
+        <button id="tabDoctor" type="button">Doktor girişi</button>
+      </div>
+      <div class="hr"></div>
+
+      <div id="panelPatient" class="grid2" style="margin-top:12px;">
+        <div>
+          <label for="patientName">Ad</label>
+          <input id="patientName" type="text" placeholder="Ali Y." autocomplete="name" />
+        </div>
+        <div>
+          <label for="patientPin">PIN</label>
+          <input id="patientPin" type="password" placeholder="0000" inputmode="numeric" />
+        </div>
+        <div class="row" style="grid-column:1/-1; justify-content: flex-end;">
+          <button id="patientLoginBtn" class="primary" type="button">Giriş</button>
+        </div>
+        <div style="grid-column:1/-1;" class="muted">Demo: Hasta = Ali Y. • PIN = 0000</div>
+
+        <div id="uploadSection" class="hidden" style="grid-column:1/-1; margin-top:14px;">
+          <h2>Doktora Gönder</h2>
+          <div id="uploadBox">
+            <label for="uploadFile">Görsel seç</label>
+            <input id="uploadFile" type="file" accept="image/*" />
+            <div class="row" style="margin-top:10px; justify-content:flex-end;">
+              <button id="uploadBtn" class="primary" type="button">Yükle (Doktora Gönder)</button>
+            </div>
+            <div class="soft" style="margin-top:6px;">Yüklenen görseller doktor panelindeki <b>Bekleyen Tetkikler</b> listesine düşer.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panelDoctor" class="grid2 hidden" style="margin-top:12px;">
+        <div>
+          <label for="doctorName">Ad</label>
+          <input id="doctorName" type="text" placeholder="Merve" />
+        </div>
+        <div>
+          <label for="doctorPin">PIN</label>
+          <input id="doctorPin" type="password" placeholder="0000" inputmode="numeric" />
+        </div>
+        <div class="row" style="grid-column:1/-1; justify-content: flex-end;">
+          <button id="doctorLoginBtn" class="primary" type="button">Giriş</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="patientApp" class="card hidden" aria-hidden="true" style="margin-top:16px;">
+      <div class="split">
+        <div>
+          <h2>Gelen Sonuçlar</h2>
+          <div class="content">
+            <div id="myCases" class="kv"></div>
+            <div id="myCasesHint" class="muted">Doktorunuz tarafından yayınlanan sonuçlar burada listelenir.</div>
+          </div>
+        </div>
+        <div>
+          <h2>Sonuç Detayı</h2>
+          <div id="patientDetail" class="muted">Soldan bir sonuç seçin.</div>
+          <div class="hr" style="margin:12px 0"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="doctorApp" class="card hidden" aria-hidden="true" style="margin-top:16px;">
+      <div class="cols">
+        <div>
+          <h2>Bekleyen Tetkikler</h2>
+          <div id="pendingList" class="list"></div>
+          <div id="pendingHint" class="muted">Bekleyen tetkik yok.</div>
+        </div>
+        <div>
+          <h2>Hasta Sayfası</h2>
+          <div id="doctorDetail" class="muted">Listeden bir hasta seçin.</div>
+          <div class="hr" style="margin:12px 0"></div>
+          <div id="doctorActions" class="hidden">
+            <div class="detail-row"><div>Hasta</div><div id="ddName">-</div></div>
+            <div class="detail-row"><div>Case ID</div><div id="ddCase">-</div></div>
+            <div id="ddImgs" style="margin:8px 0"></div>
+            <div class="row" style="justify-content:flex-end; margin:8px 0;">
+              <button id="predictBtn" class="primary" type="button">Tahmin oluştur</button>
+            </div>
+
+            <div id="ddReliability" class="row" style="justify-content:flex-start; margin:4px 0 6px 0;"></div>
+
+            <div class="grid3">
+              <div>
+                <label for="docLabel">Etiket</label>
+                <select id="docLabel">
+                  <option value="">— Seçin —</option>
+                  <option value="benign">Benign</option>
+                  <option value="malign">Malign</option>
+                </select>
+              </div>
+              <div style="grid-column:1/-1;">
+                <label for="docNote">Doktor Notu</label>
+                <textarea id="docNote" placeholder="Kısa not…"></textarea>
+              </div>
+              <div class="row" style="grid-column:1/-1; justify-content:flex-end;">
+                <button id="publishBtn" class="primary" type="button">Yayınla</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toastOverlay" class="hidden"></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script>
+    (function(){
+      const API = (window.API_BASE || 'http://127.0.0.1:8000').replace(/\/$/, '');
+      const CONF_THRESHOLD = 0.70;
+      const LOW_CONF_MSG = 'Yanlış/Yetersiz görsel olabilir. Lütfen daha net/odaklı bir fotoğraf yükleyin.';
+
+      const el = (id) => document.getElementById(id);
+      const qs = (sel, root=document) => root.querySelector(sel);
+      const qsa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+      function toast(msg, type='info'){
+        const t = el('toast');
+        const ov = el('toastOverlay');
+        t.textContent = msg;
+        t.classList.remove('hidden');
+        if (ov) ov.classList.remove('hidden');
+
+        t.style.borderColor = type==='error' ? '#7f1d1d' : (type==='ok' ? '#14532d' : '#263041');
+
+        setTimeout(()=>{
+          t.classList.add('hidden');
+          if (ov) ov.classList.add('hidden');
+        }, 1200);
+      }
+      const fmt = (s)=>{ try { return new Date(s).toLocaleString('tr-TR'); } catch { return s||''; } };
+      const parseDate = (s)=> s ? new Date(s) : new Date(0);
+
+      async function getJSON(url){
+        const r = await fetch(url);
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const ct = r.headers.get('content-type')||'';
+        return ct.includes('application/json') ? r.json() : r.text();
+      }
+      async function postJSON(url, data){
+        const r = await fetch(url,{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        return r.json().catch(()=>({ok:true}));
+      }
+      async function postForm(url, formData){
+        const r = await fetch(url,{ method:'POST', body: formData });
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const ct = r.headers.get('content-type')||'';
+        return ct.includes('application/json') ? r.json() : r.text();
+      }
+
+      async function refreshHealth(){
+        try {
+          const js = await getJSON(API + '/health');
+          el('healthBadge').textContent = `Sunucu: ${js.status || 'ok'} (${js.device || 'n/a'})`;
+        } catch (e) { el('healthBadge').textContent = 'Sunucu: ulaşılamıyor'; }
+      }
+      refreshHealth();
+      el('refreshHealth').addEventListener('click', refreshHealth);
+
+      const state = {
+        role: 'patient',
+        currentPatient: null,
+        loadingCases: false,
+        cases: [],
+        selected: null,
+        predicting: false,
+        pending: [],
+        selectedPending: null,
+      };
+
+      function setUploadVisible(flag){
+        const sec = el('uploadSection');
+        if(!sec) return;
+        sec.classList.toggle('hidden', !flag);
+      }
+      setUploadVisible(false);
+
+      el('tabPatient').addEventListener('click', () => {
+        el('tabPatient').classList.add('active');
+        el('tabDoctor').classList.remove('active');
+        el('panelPatient').classList.remove('hidden');
+        el('panelDoctor').classList.add('hidden');
+        state.role = 'patient';
+        el('patientApp').classList.add('hidden');
+        el('doctorApp').classList.add('hidden');
+        setUploadVisible(false);
+      });
+      el('tabDoctor').addEventListener('click', () => {
+        el('tabDoctor').classList.add('active');
+        el('tabPatient').classList.remove('active');
+        el('panelDoctor').classList.remove('hidden');
+        el('panelPatient').classList.add('hidden');
+        state.role = 'doctor';
+        el('patientApp').classList.add('hidden');
+        el('doctorApp').classList.add('hidden');
+        setUploadVisible(false);
+      });
+
+      function switchTo(which){
+        const isPatient = which === 'patient';
+        el('patientApp').classList.toggle('hidden', !isPatient);
+        el('doctorApp').classList.toggle('hidden', isPatient);
+        el('patientApp').setAttribute('aria-hidden', String(!isPatient));
+        el('doctorApp').setAttribute('aria-hidden', String(isPatient));
+      }
+      window.switchTo = switchTo;
+
+      function renderPatientDetail(it){
+        const box = el('patientDetail');
+        if(!box){return}
+        if(!it){ box.innerHTML = '<span class="muted">Soldan bir sonuç seçin.</span>'; return; }
+        const lines = [];
+        const when = it.case_created_at || it.created_at || '';
+        lines.push(`<div class="detail-row"><div>Tarih</div><div>${fmt(when)}</div></div>`);
+        lines.push(`<div class="detail-row"><div>Case ID</div><div>#${it.case_id ?? '-'}</div></div>`);
+        if (it.label != null){
+          const cls = (it.label||'').toLowerCase()==='benign' ? 'ok' : ((it.label||'').toLowerCase()==='malign' ? 'bad' : 'neutral');
+          const conf = (typeof it.conf === 'number') ? ` ${(it.conf*100).toFixed(1)}%` : '';
+          lines.push(`<div class="detail-row"><div>Sonuç</div><div><span class="badge ${cls}">${String(it.label||'-').toUpperCase()}${conf}</span></div></div>`);
+        }
+        if (it.model_version){ lines.push(`<div class="detail-row"><div>Model</div><div>${it.model_version}</div></div>`); }
+        if (it.doctor_note){ lines.push(`<div class="detail-row"><div>Doktor Notu</div><div>${it.doctor_note}</div></div>`); }
+        const imgs = [];
+        if (it.input_url){ imgs.push(`<div><div class="soft" style="margin:6px 0 4px">Girdi</div><img class="img" src="${it.input_url}"></div>`); }
+        if (it.output_url){ imgs.push(`<div><div class="soft" style="margin:6px 0 4px">Çıktı</div><img class="img" src="${it.output_url}"></div>`); }
+        box.innerHTML = lines.join('') + (imgs.length ? `<div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">${imgs.join('')}</div>` : '');
+      }
+
+      function renderCases(items, who){
+        state.cases = Array.isArray(items) ? items : [];
+        const list = el('myCases');
+        const hint = el('myCasesHint');
+        if (!state.cases.length){
+          list.innerHTML = '';
+          hint.textContent = who ? `"${who}" için sonuç yok.` : 'Doktorunuz tarafından yayınlanan sonuçlar burada listelenir.';
+          hint.classList.remove('hidden');
+          renderPatientDetail(null);
+          return;
+        }
+        hint.classList.add('hidden');
+        list.innerHTML = state.cases.map((it,idx)=>{
+          const when = it.case_created_at || it.created_at || '';
+          const label = (it.label ?? '-');
+          const conf = (typeof it.conf === 'number') ? ` ${(it.conf*100).toFixed(1)}%` : '';
+          const badge = label ? (label.toLowerCase()==='benign' ? 'ok' : (label.toLowerCase()==='malign' ? 'bad' : 'neutral')) : 'neutral';
+          return `
+            <div class="case-row" data-idx="${idx}">
+              <div style="color:#a8b3c3">${fmt(when)}</div>
+              <div><span class="badge ${badge}">${(label||'-').toUpperCase()}${conf}</span></div>
+              <div style="text-align:right">#${it.case_id ?? '-'}</div>
+            </div>`;
+        }).join('');
+        qsa('.case-row', list).forEach(row => row.addEventListener('click', () => {
+          const i = Number(row.getAttribute('data-idx'));
+          state.selected = state.cases[i];
+          renderPatientDetail(state.selected);
+        }));
+        state.selected = state.cases[0];
+        renderPatientDetail(state.selected);
+      }
+      async function loadPatientCases(name){
+        if (!name || state.loadingCases) return;
+        state.loadingCases = true;
+        try {
+          const url = API + '/cases?name=' + encodeURIComponent(name);
+          const js = await getJSON(url);
+          renderCases(Array.isArray(js)? js : [], name);
+        } catch (e) {
+          renderCases([], name);
+          toast('Kayıtlar alınamadı', 'error');
+        } finally { state.loadingCases = false; }
+      }
+      window.loadPatientCases = loadPatientCases;
+
+      async function uploadForDoctor(){
+        const f = el('uploadFile').files?.[0];
+        if (!f){ toast('Önce bir görsel seçin', 'warn'); return; }
+        if (!state.currentPatient){ toast('Hasta adı boş', 'warn'); return; }
+        const fd = new FormData();
+        fd.append('file', f);
+        fd.append('patient_name', state.currentPatient);
+        const endpoints = ['/upload','/cases/upload','/cases','/cases/new'];
+        let ok = false;
+        for (const ep of endpoints){
+          try { await postForm(API + ep, fd); ok = true; break; } catch(e){}
+        }
+        if (!ok) { toast('Yükleme başarısız', 'error'); return; }
+        el('uploadFile').value = '';
+        toast('Görsel doktora gönderildi', 'ok');
+      }
+
+      function renderPending(arr){
+        state.pending = Array.isArray(arr) ? arr : [];
+        state.pending.sort((a,b)=> parseDate(a.case_created_at||a.created_at) - parseDate(b.case_created_at||b.created_at));
+        const list = el('pendingList');
+        const hint = el('pendingHint');
+        if (!state.pending.length){ list.innerHTML=''; hint.classList.remove('hidden'); return; }
+        hint.classList.add('hidden');
+        list.innerHTML = state.pending.map((it,idx)=>{
+          const when = it.case_created_at || it.created_at || '';
+          const who  = it.patient_name || it.name || '-';
+          return `<div class="case-row" data-idx="${idx}">
+            <div style="color:#a8b3c3">${fmt(when)}</div>
+            <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b>${who}</b></div>
+            <div style="text-align:right">#${it.case_id ?? '-'}</div>
+          </div>`;
+        }).join('');
+        qsa('.case-row', list).forEach(row => row.addEventListener('click', () => {
+          const i = Number(row.getAttribute('data-idx'));
+          state.selectedPending = state.pending[i];
+          openDoctorDetail(state.selectedPending);
+        }));
+      }
+      async function loadPending(){
+        const eps = ['/pending','/cases/pending'];
+        for (const ep of eps){
+          try { const js = await getJSON(API + ep); renderPending(Array.isArray(js)? js:[]); return; } catch(e){}
+        }
+        renderPending([]);
+      }
+
+      function computeConf(obj){
+        if (typeof obj?.conf === 'number') return obj.conf;
+        const bc = (typeof obj?.benign_conf === 'number') ? obj.benign_conf : null;
+        const mc = (typeof obj?.malign_conf === 'number') ? obj.malign_conf : null;
+        if (bc==null && mc==null) return null;
+        return Math.max(bc||0, mc||0);
+      }
+      function applyLowConfidenceUI(conf){
+        const rel = el('ddReliability');
+        const note = el('docNote');
+        if (!rel || !note) return;
+        if (conf!=null && conf < CONF_THRESHOLD){
+          rel.innerHTML = `<span class="badge dim">DİKKAT! Model güvenilirliği düşük, lütfen kendiniz etiketleme yapınız veya hastadan tekrar görsel isteyiniz.</span>`;
+          note.value = LOW_CONF_MSG;
+          note.placeholder = LOW_CONF_MSG;
+        } else {
+          rel.innerHTML = '';
+          if (!note.value) note.placeholder = 'Kısa not…';
+        }
+      }
+
+      function openDoctorDetail(it){
+        if (!it){ el('doctorDetail').textContent = 'Listeden bir hasta seçin.'; el('doctorActions').classList.add('hidden'); return; }
+        el('doctorActions').classList.remove('hidden');
+        el('doctorDetail').innerHTML = '';
+        el('ddName').textContent = it.patient_name || it.name || '-';
+        el('ddCase').textContent = '#' + (it.case_id ?? '-');
+        const parts = [];
+        if (it.input_url) parts.push(`<div><div class="soft" style="margin:6px 0 4px">Girdi</div><img class="img" src="${it.input_url}"></div>`);
+        if (it.output_url) parts.push(`<div><div class="soft" style="margin:6px 0 4px">Model Çıktısı</div><img class="img" src="${it.output_url}"></div>`);
+        el('ddImgs').innerHTML = parts.join('');
+        const extra = [];
+        if (it.label != null){
+          const cls = (it.label||'').toLowerCase()==='benign' ? 'ok' : ((it.label||'').toLowerCase()==='malign' ? 'bad' : 'neutral');
+          const confText = (typeof it.conf === 'number') ? ` ${(it.conf*100).toFixed(1)}%` : '';
+          extra.push(`<div class="detail-row"><div>Model Tahmini</div><div><span class="badge ${cls}">${String(it.label||'-').toUpperCase()}${confText}</span></div></div>`);
+        }
+        if (it.model_version){ extra.push(`<div class="detail-row"><div>Model</div><div>${it.model_version}</div></div>`);
+        }
+        if (extra.length){ el('doctorDetail').innerHTML = extra.join(''); }
+        el('docLabel').value = '';
+        el('docNote').value = '';
+        const confVal = computeConf(it);
+        applyLowConfidenceUI(confVal);
+      }
+
+      async function predictOnSelected(){
+        const it = state.selectedPending;
+        if (!it){ toast('Önce listeden hasta seçin', 'warn'); return; }
+        if (state.predicting) return;
+        state.predicting = true;
+        el('predictBtn').disabled = true;
+        try {
+          const endpoints = ['/predict','/cases/predict','/inference'];
+          let ok = false;
+          for (const ep of endpoints){
+            try {
+              const js = await postJSON(API + ep, { case_id: it.case_id });
+              const confNow = computeConf(js);
+              if (confNow!=null) applyLowConfidenceUI(confNow);
+
+              if (js.label || js.output_url) {
+                await loadPending();
+                if (state.selectedPending){
+                  const updated = state.pending.find(c => c.case_id === it.case_id);
+                  if (updated) {
+                    state.selectedPending = updated;
+                    openDoctorDetail(updated);
+                  }
+                }
+                toast('Tahmin tamamlandı', 'ok');
+              }
+              ok = true;
+              break;
+            } catch(e){}
+          }
+          if (!ok) throw new Error('Prediction failed');
+        } catch(e){
+          console.error(e);
+          toast('Tahmin hatası', 'error');
+        } finally {
+          state.predicting = false;
+          el('predictBtn').disabled = false;
+        }
+      }
+
+      async function publishSelected(){
+        const it = state.selectedPending;
+        if (!it){ toast('Önce listeden hasta seçin', 'warn'); return; }
+        const name = it.patient_name || it.name;
+        const label = el('docLabel').value;
+        const note = el('docNote').value.trim();
+        const payload = { patient_name: name, case_id: it.case_id, label, doctor_note: note };
+        const endpoints = ['/publish','/cases/publish','/doctor/publish'];
+        let ok=false; for (const ep of endpoints){ try { await postJSON(API + ep, payload); ok=true; break; } catch(e){} }
+        if (!ok){ toast('Yayın hatası', 'error'); return; }
+        toast('Yayınlandı', 'ok');
+        await loadPending();
+        if (!el('patientApp').classList.contains('hidden') && state.currentPatient === name){
+          await loadPatientCases(name);
+        }
+      }
+
+      el('patientLoginBtn').addEventListener('click', async () => {
+        const name = el('patientName').value.trim();
+        const pin  = el('patientPin').value.trim();
+        if (!name || !pin){ toast('Ad ve PIN gerekli', 'warn'); return; }
+        state.currentPatient = name;
+        switchTo('patient');
+        await loadPatientCases(name);
+        setUploadVisible(true);
+      });
+
+      el('doctorLoginBtn').addEventListener('click', async () => {
+        const name = el('doctorName').value.trim();
+        const pin  = el('doctorPin').value.trim();
+        if (!name || !pin){ toast('Ad ve PIN gerekli', 'warn'); return; }
+        switchTo('doctor');
+        await loadPending();
+        setUploadVisible(false);
+      });
+
+      el('uploadBtn').addEventListener('click', uploadForDoctor);
+      el('predictBtn').addEventListener('click', predictOnSelected);
+      el('publishBtn').addEventListener('click', publishSelected);
+
+      el('patientName').value = 'Ali Y.';
+      el('patientPin').value = '0000';
+
+    })();
+    // run with: python -m http.server 5500
+  </script>
+</body>
+</html>
+
+
+

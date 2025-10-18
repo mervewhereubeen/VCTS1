@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VCTS Classifier – Demo UI</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#121826;--muted:#9aa4b2;--text:#e6edf3;--acc:#4f8cff;--ok:#2ecc71;--warn:#ffcc00;--bad:#ff6b6b}
+    *{box-sizing:border-box}
+    body{margin:0;font:16px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Apple Color Emoji","Segoe UI Emoji";background:linear-gradient(180deg,#0b0f14,#0b0f14 40%,#0d1522);color:var(--text)}
+    header{padding:24px 16px;text-align:center}
+    header h1{margin:0 0 6px;font-size:22px}
+    header p{margin:0;color:var(--muted)}
+    .container{max-width:980px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1.1fr 0.9fr;gap:16px}
+    .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .card h2{margin:0;padding:14px 16px;border-bottom:1px solid #1f2937;font-size:16px;color:#d0d8e1}
+    .card .content{padding:16px}
+    label{display:block;font-size:13px;margin:12px 0 6px;color:#c3ccd7}
+    input[type="text"], textarea{width:100%;padding:10px 12px;background:#0e1420;border:1px solid #263041;color:var(--text);border-radius:10px;outline:none}
+    textarea{min-height:70px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .hint{font-size:12px;color:var(--muted)}
+    .filebox{border:1px dashed #304056;background:#0e1420;padding:14px;border-radius:12px;text-align:center}
+    .filebox input{display:none}
+    .filebox .pick{display:inline-block;padding:10px 14px;border-radius:10px;background:#192433;border:1px solid #2a3a51;color:#d7e2ee;cursor:pointer}
+    .preview{margin-top:12px;display:flex;gap:12px;align-items:center}
+    .preview img{max-height:110px;border-radius:10px;border:1px solid #263041}
+    .actions{display:flex;gap:10px;margin-top:14px}
+    button{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;background:var(--acc);color:white}
+    button[disabled]{opacity:.6;cursor:not-allowed}
+    .ghost{background:#1f2937;color:#d6dde7}
+    .log{white-space:pre-wrap;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;background:#0e1420;border:1px solid #263041;border-radius:10px;padding:12px;color:#cfe0ff}
+    .kv{display:grid;grid-template-columns:160px 1fr;gap:8px;font-size:14px}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;font-weight:700}
+    .ok{background:rgba(46,204,113,.14);color:#93e2b3;border:1px solid rgba(46,204,113,.35)}
+    .warn{background:rgba(255,204,0,.14);color:#e5cd84;border:1px solid rgba(255,204,0,.35)}
+    .bad{background:rgba(255,107,107,.14);color:#ffb3b3;border:1px solid rgba(255,107,107,.35)}
+    footer{max-width:980px;margin:18px auto 28px;padding:0 16px;color:#8ea2bd;font-size:12px}
+    .hidden{display:none!important}
+    @media (max-width: 900px){.container{grid-template-columns:1fr}}.hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>VCTS Classifier – Demo UI</h1>
+    <p>Resim yükle → FastAPI <code>/predict</code> → Sonucu gör. (Yerel kullanım için.)</p>
+  </header>
+<!-- DEMO uyarı bandı -->
+<section id="demoBanner" class="card" style="max-width:980px;margin:8px auto 0;padding:10px 14px;">
+  <div class="content" style="display:flex;gap:12px;align-items:center;justify-content:space-between;padding:8px 0;">
+    <div style="color:#cfe0ff;font-size:14px;">
+      <strong>Dikkat:</strong> Demo sürümündesiniz. Doktor: <b>Merve</b>, Hasta: <b>Ali Y.</b>, PIN/Şifre: <b>0000</b>.
+      Gerçek kullanımda kurumsal kimlik doğrulaması uygulanır.
+    </div>
+    <button id="bannerOk" class="ghost" type="button">Anladım</button>
+  </div>
+</section>
+
+<!-- rol seçimi -->
+<section id="landing" style="max-width:980px;margin:12px auto 0;padding:0 16px;">
+  <div class="card" style="padding:18px;">
+    <h2 style="margin:0 0 12px 0;padding:0 2px;border:0;">Giriş</h2>
+    <div class="content" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <button id="btnDoctor" class="ghost" style="padding:28px;font-size:18px;cursor:pointer;"
+        onclick="try{window.openLogin && window.openLogin('doctor')}catch(e){window.switchTo && window.switchTo('doctor')}">
+  Doktor Girişi
+</button>
+
+<button id="btnPatient" class="ghost" style="padding:28px;font-size:18px;cursor:pointer;"
+        onclick="try{window.openLogin && window.openLogin('patient')}catch(e){window.switchTo && window.switchTo('patient')}">
+  Hasta Girişi
+</button>
+
+    </div>
+    <div class="hint" style="margin-top:12px;">
+      1) Doktor gir → 2) Görsel yükle & tahmin → 3) Hastaya gönder → 4) Hasta gir ve görüntüle
+    </div>
+  </div>
+</section>
+
+<section id="doctorApp" class="hidden">
+
+<div id="doctorPanel" class="container">
+    <!-- Left: Form -->
+    <section class="card">
+      <h2>İstek</h2>
+      <div class="content">
+        <div class="row">
+          <div>
+            <label>API Base URL</label>
+            <input id="baseUrl" type="text" value="http://127.0.0.1:8000" />
+            <div class="hint">Gerekirse değiştir (örn. başka port/dns)</div>
+          </div>
+          <div>
+            <label>Model Cihazı</label>
+            <div id="deviceBadge" class="badge warn">bilinmiyor</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Hasta Adı</label>
+            <input id="patient" type="text" placeholder="ör. Ayşe K." />
+          </div>
+          <div>
+            <label>Doktor (opsiyonel)</label>
+            <input id="doctor" type="text" placeholder="ör. Dr. M. Özdemir" />
+          </div>
+        </div>
+
+        <label>Not (opsiyonel)</label>
+        <label>Doktor Yorumu</label>
+<textarea id="docNote" placeholder="Hastaya görünmesini istediğiniz kısa mesaj..."></textarea>
+
+        <textarea id="note" placeholder="Kısa not ekleyebilirsin..."></textarea>
+
+        <label>Görsel</label>
+        <div class="filebox">
+          <input id="file" type="file" accept="image/png,image/jpeg" />
+          <label class="pick" for="file">Dosya Seç (.jpg/.png)</label>
+          <div id="preview" class="preview" hidden>
+            <img id="thumb" alt="" style="display:none;"/>
+            <span id="fname" class="hint"></span>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="sendBtn" type="button" disabled>Gönder & Tahmin Yap</button>
+          <button id="publishBtn" type="button" class="ghost" disabled>Hastaya Gönder</button>
+          <button id="clearBtn" type="button" class="ghost">Temizle</button>
+        </div>
+
+        <div id="log" class="log" style="margin-top:14px;">Hazır.</div>
+      </div>
+    
+    </section>
+
+   
+<div id="patientPanel" class="container hidden">
+  <section class="card">
+    <h2>Sonuçlarım</h2>
+    <div class="content">
+      <div id="myCases" style="min-height:160px;"></div>
+      <div class="hint">Yayınlanan sonuçlar burada listelenir.</div>
+    </div>
+  </section>
+
+
+  <section class="card">
+    <h2>Detay</h2>
+    <div class="content">
+      <div id="ptStatus" class="badge warn">Bekleniyor</div>
+      <div style="margin-top:10px;">
+        <span id="ptResultBadge" class="badge warn">—</span>
+      </div>
+      <div id="ptInfo" class="hint" style="margin-top:10px;"></div>
+      <div id="ptDoctorNote" class="log" style="margin-top:10px;display:none;"></div>
+      <div style="margin-top:12px;display:flex;gap:12px;align-items:center;">
+        <a id="ptInplink" target="_blank"><img id="ptThumbIn" alt="input" style="max-height:110px;border-radius:10px;border:1px solid #263041;display:none;"/></a>
+        <a id="ptOutlink" target="_blank"><img id="ptThumbOut" alt="output" style="max-height:110px;border-radius:10px;border:1px solid #263041;display:none;"/></a>
+      </div>
+    </div>
+  </section>
+</section>
+
+
+    <!-- Right: Result -->
+    <section class="card">
+      <h2>Sonuç</h2>
+      <div class="content">
+        <div id="status" class="badge warn">Bekleniyor</div>
+        <div id="caseStatusBadge" class="badge warn" style="margin-left:8px;">draft</div>
+
+        <div id="kv" class="kv" style="margin-top:12px;display:none;"></div>
+        <div id="imgs" style="margin-top:12px;display:none;">
+          <label>Görseller</label>
+          <div class="preview">
+            <a id="inplink" target="_blank"><img id="inppic" alt="input" /></a>
+            <a id="outlink" target="_blank"><img id="outpic" alt="output" /></a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+
+  <!-- Login Modal -->
+<div id="loginDialog" class="modal-backdrop hidden">
+  <div class="modal">
+    <header id="loginRoleLabel">Giriş</header>
+    <div class="body">
+      <label>Ad</label>
+      <input id="loginName" type="text" placeholder="Merve / Ali Y." style="width:100%;padding:10px 12px;background:#0e1420;border:1px solid #263041;color:var(--text);border-radius:10px;">
+      <label style="margin-top:12px;">PIN</label>
+      <input id="loginPin" type="text" placeholder="0000" style="width:100%;padding:10px 12px;background:#0e1420;border:1px solid #263041;color:var(--text);border-radius:10px;">
+      <div class="hint" style="margin-top:8px;">Demo: Doktor = Merve • Hasta = Ali Y. • PIN = 0000</div>
+    </div>
+    <div class="actions">
+      <button id="loginCancel" class="btn ghost" type="button">İptal</button>
+      <button id="loginConfirm" class="btn primary" type="button">Giriş</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== HASTA PANELİ ===================== -->
+<div id="patientPanel" class="container hidden" style="max-width:980px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1.1fr 0.9fr;gap:16px">
+
+  <!-- Sol: Sonuçlarım listesi -->
+  <section class="card">
+    <h2>Sonuçlarım</h2>
+    <div class="content">
+      <div id="myCases" style="min-height:160px">
+        <div class="hint">Yayınlanmış bir sonuç bulunamadı.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sağ: Detay -->
+  <section class="card">
+    <h2>Detay</h2>
+    <div class="content">
+      <div id="ptStatus" class="badge warn">Bekleniyor</div>
+      <div id="ptResultBadge" class="badge warn" style="margin-left:8px;">—</div>
+
+      <div id="ptInfo" class="hint" style="margin-top:10px;"></div>
+      <div id="ptDoctorNote" class="log" style="margin-top:10px;display:none;"></div>
+
+      <div style="margin-top:12px;">
+        <label>Görseller</label>
+        <div class="preview">
+          <a id="ptInplink" target="_blank"><img id="ptThumbIn" alt="input" style="display:none;"/></a>
+          <a id="ptOutlink" target="_blank"><img id="ptThumbOut" alt="output" style="display:none;"/></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+<!-- =================== / HASTA PANELİ ===================== -->
+  <footer>
+    Uyarı: Bu demo yalnızca yerel geliştirme içindir. Üretimde <code>CORS</code> ve <code>allow_origins</code> kısıtlamalarını düzenleyin.
+  </footer>
+
+  <script>
+  // --- küçük koruma: Enter ile beklenmedik submit olmasın
+window.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+
+  // Modal AÇIKSA: Enter = Giriş
+  const dlg = document.querySelector('#loginDialog');
+  const isOpen = dlg && !dlg.classList.contains('hidden');
+  if (isOpen) {
+    // Sadece login inputlarında Enter'a izin ver, diğer etkileri engelle
+    const ae = document.activeElement;
+    const inLogin = ae && (ae.id === 'loginName' || ae.id === 'loginPin');
+    e.preventDefault();
+    if (inLogin) {
+      const btn = document.querySelector('#loginConfirm');
+      btn && btn.click();
+    }
+    return;
+  }
+
+  
+  e.preventDefault();
+});
+
+
+  const $ = (sel)=>document.querySelector(sel);
+
+  // yeni elemanlar
+const demoBanner = $('#demoBanner');
+const bannerOk   = $('#bannerOk');
+const landing    = $('#landing');
+const doctorApp  = $('#doctorApp');
+const patientApp = $('#patientApp');
+
+// Login modal elemanları
+const loginDialog    = $('#loginDialog');
+const loginRoleLabel = $('#loginRoleLabel');
+const loginName      = $('#loginName');
+const loginPin       = $('#loginPin');
+const loginConfirm   = $('#loginConfirm');
+const loginCancel    = $('#loginCancel');
+
+// Rol seçim butonları
+const btnDoctor = $('#btnDoctor');
+const btnPatient= $('#btnPatient');
+
+const caseStatusBadge = $('#caseStatusBadge');
+
+
+const publishBtn = $('#publishBtn');  
+const docNote    = $('#docNote');      
+
+// === Doktor akışı: durum
+let lastCaseId = null;       
+let lastPatientName = null;   
+
+
+// Yardımcı görünürlük fonksiyonları
+function show(el){ el && el.classList.remove('hidden'); }
+function hide(el){ el && el.classList.add('hidden'); }
+
+// Başlangıç görünürlüğü: landing + demoBanner açık, paneller kapalı, modal kapalı
+hide(doctorApp);
+hide(patientApp);
+hide(loginDialog);
+show(landing);
+show(demoBanner);
+// === DEMO banner davranışı ===
+try {
+  // İlk gelişte göster, "Anladım" denirse birdaha gösterme
+  if (sessionStorage.getItem('vcts_demo_ack') === '1') {
+    hide(demoBanner);
+  }
+  bannerOk?.addEventListener('click', () => {
+    hide(demoBanner);
+    sessionStorage.setItem('vcts_demo_ack', '1');
+  });
+} catch { /* sessionStorage yoksa sessiz geç */ }
+
+// === Rol seçimi → login modalını aç ===
+// === Rol seçimi → login modalını aç (savunmacı sürüm)
+function openLogin(role){
+  try {
+    // Elemanları yeniden bul (bazı durumlarda üstteki const referansları boş dönebiliyor)
+    const dlg  = document.querySelector('#loginDialog');
+    const lbl  = document.querySelector('#loginRoleLabel');
+    const inpN = document.querySelector('#loginName');
+    const inpP = document.querySelector('#loginPin');
+
+    // Eğer modal HTML'i bulunamazsa: doğrudan panele geç (fallback)
+    if (!dlg || !lbl || !inpN || !inpP) {
+      console.warn('loginDialog bulunamadı, fallback ile panele geçiliyor:', role);
+      switchTo(role);
+      return;
+    }
+
+    // Başlık ve placeholder
+    lbl.textContent = role === 'doctor' ? 'Doktor Girişi' : 'Hasta Girişi';
+    inpN.value = '';
+    inpP.value = '';
+    inpN.placeholder = role === 'doctor' ? 'Merve' : 'Ali Y.';
+    inpP.placeholder = '0000';
+
+    // Rol bilgisini dataset'te sakla
+    dlg.dataset.role = role;
+
+    // Modalı aç
+    dlg.classList.remove('hidden');
+
+    // Odak ver
+    setTimeout(()=>{ try { inpN.focus(); } catch {} }, 0);
+  } catch (err){
+    console.error('openLogin hata:', err);
+    // Her durumda kullanıcı akışsız kalmasın diye fallback
+    switchTo(role);
+  }
+}
+// HTML'den çağrılabilsin diye global'e aç
+window.openLogin = openLogin;
+window.switchTo  = switchTo;
+
+
+// Butonlar → modal aç
+btnDoctor?.addEventListener('click', () => openLogin('doctor'));
+btnPatient?.addEventListener('click', () => openLogin('patient'));
+// === Rol seçimi için tıklama delegasyonu (garanti) ===
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (!t) return;
+
+  if (t.id === 'btnDoctor') {
+    e.preventDefault();
+    openLogin('doctor');
+    return;
+  }
+  if (t.id === 'btnPatient') {
+    e.preventDefault();
+    openLogin('patient');
+    return;
+  }
+});
+
+// Tıklama sonrası modal görünmüyorsa (ör. CSS/HTML eksikliği), 50ms sonra fallback
+document.addEventListener('click', (e) => {
+  const id = e.target && e.target.id;
+  if (id !== 'btnDoctor' && id !== 'btnPatient') return;
+  const role = (id === 'btnDoctor') ? 'doctor' : 'patient';
+
+  setTimeout(() => {
+    const dlg = document.querySelector('#loginDialog');
+    const hidden = !dlg || dlg.classList.contains('hidden');
+    if (hidden) {
+      // Modal açılmadıysa kullanıcı akışsız kalmasın: panele geçir
+      switchTo(role);
+    }
+  }, 50);
+});
+
+// Modal kapatma
+loginCancel?.addEventListener('click', () => hide(loginDialog));
+
+// ESC ile kapatma ekleyeyim
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !loginDialog.classList.contains('hidden')) {
+    hide(loginDialog);
+  }
+});
+// Panel geçişi: doktor ↔ hasta
+function switchTo(role){
+  const doctorPanel  = document.querySelector('#doctorPanel');
+  const patientPanel = document.querySelector('#patientPanel');
+
+  if (role === 'doctor') {
+    if (patientPanel) patientPanel.classList.add('hidden');
+    if (doctorPanel)  doctorPanel.classList.remove('hidden');
+    // (opsiyonel) rozet / health tetikleme
+    try { setBadge(deviceBadge, 'warn', 'kontrol ediliyor…'); checkHealth(); } catch {}
+  }
+
+  if (role === 'patient') {
+    if (doctorPanel)  doctorPanel.classList.add('hidden');
+    if (patientPanel) patientPanel.classList.remove('hidden');
+
+    // hasta adı: session'da yoksa demo adıyla yükle
+    const name = (sessionStorage.getItem('vcts_name') || 'Ali Y.').trim();
+    try { sessionStorage.setItem('vcts_name', name); sessionStorage.setItem('vcts_role','patient'); } catch {}
+    // listeyi getir
+    if (typeof loadPatientCases === 'function') {
+      loadPatientCases(name);
+    }
+  }
+}
+// HTML'den çağrılabilsin
+window.switchTo = switchTo;
+
+// === Hasta paneli: listeyi yükle + detayları doldur (sağlam sürüm)
+async function loadPatientCases(patientName){
+  const patientPanel = document.querySelector('#patientPanel');
+  if (patientPanel) patientPanel.classList.remove('hidden');
+
+  const myCases       = document.querySelector('#myCases');
+  const ptStatus      = document.querySelector('#ptStatus');
+  const ptResultBadge = document.querySelector('#ptResultBadge');
+  const ptInfo        = document.querySelector('#ptInfo');
+  const ptDoctorNote  = document.querySelector('#ptDoctorNote');
+  const ptThumbIn     = document.querySelector('#ptThumbIn');
+  const ptThumbOut    = document.querySelector('#ptThumbOut');
+  const ptInplink     = document.querySelector('#ptInplink');
+  const ptOutlink     = document.querySelector('#ptOutlink');
+
+  if (!myCases) return;
+
+  const base = (document.querySelector('#baseUrl')?.value || window.location.origin).replace(/\/+$/,'');
+  const url  = `${base}/patient/cases?name=${encodeURIComponent(patientName)}`;
+
+  myCases.innerHTML = '<div class="hint">Yükleniyor…</div>';
+  if (ptStatus)      { ptStatus.className='badge warn'; ptStatus.textContent='Bekleniyor'; }
+  if (ptResultBadge) { ptResultBadge.className='badge warn'; ptResultBadge.textContent='—'; }
+  if (ptInfo)        ptInfo.textContent='';
+  if (ptDoctorNote)  { ptDoctorNote.style.display='none'; ptDoctorNote.textContent=''; }
+  if (ptThumbIn)     ptThumbIn.style.display='none';
+  if (ptThumbOut)    ptThumbOut.style.display='none';
+
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const items = await res.json();
+
+    if (!Array.isArray(items) || items.length === 0){
+      myCases.innerHTML = `<div class="hint">“${patientName}” için yayınlanmış sonuç bulunamadı.</div>`;
+      return;
+    }
+
+    myCases.innerHTML = '';
+    items.forEach((it, idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:160px 100px 1fr 80px;gap:8px;padding:8px;border-bottom:1px solid #263041;cursor:pointer;';
+      const when = it.case_created_at ? new Date(it.case_created_at).toLocaleString() : '';
+      const lab  = (it.label || '—').toUpperCase();
+      const cls  = lab==='BENIGN' ? 'ok' : (lab==='MALIGN' ? 'bad' : 'warn');
+      const conf = (typeof it.conf==='number') ? `${(it.conf*100).toFixed(1)}%` : '—';
+      row.innerHTML = `
+        <div style="color:#a8b3c3">${when}</div>
+        <div><span class="badge ${cls}">${lab}</span></div>
+        <div style="color:#e2eaf5">Not: ${it.doctor_note ? it.doctor_note : '—'}</div>
+        <div style="text-align:right;color:#9aa4b2">${conf}</div>
+      `;
+      row.addEventListener('click', () => showDetail(it));
+      myCases.appendChild(row);
+      if (idx === 0) showDetail(it);
+    });
+
+    function showDetail(it){
+      if (ptStatus) { ptStatus.className='badge ok'; ptStatus.textContent='Yayınlandı'; }
+      const lab = (it.label || '—').toUpperCase();
+      if (ptResultBadge){
+        let cls = 'warn'; if (lab==='BENIGN') cls='ok'; else if (lab==='MALIGN') cls='bad';
+        ptResultBadge.className = `badge ${cls}`;
+        ptResultBadge.textContent = lab + (typeof it.conf==='number' ? ` ${(it.conf*100).toFixed(1)}%` : '');
+      }
+      if (ptInfo){
+        if (lab==='MALIGN') ptInfo.textContent = 'Bilgilendirme: Doktorunuz sizinle görüşme talep etmektedir, lütfen randevu alınız.';
+        else if (lab==='BENIGN') ptInfo.textContent = 'Ön değerlendirme benign yönünde. Gerekirse doktorunuzla iletişime geçiniz.';
+        else ptInfo.textContent = '';
+      }
+      if (ptDoctorNote){
+        if (it.doctor_note){ ptDoctorNote.style.display='block'; ptDoctorNote.textContent = it.doctor_note; }
+        else { ptDoctorNote.style.display='none'; ptDoctorNote.textContent = ''; }
+      }
+      if (ptThumbIn && it.input_url){ ptThumbIn.src = it.input_url; ptThumbIn.style.display='block'; if (ptInplink) ptInplink.href = it.input_url; }
+      else if (ptThumbIn){ ptThumbIn.style.display='none'; }
+      if (ptThumbOut && it.output_url){ ptThumbOut.src = it.output_url; ptThumbOut.style.display='block'; if (ptOutlink) ptOutlink.href = it.output_url; }
+      else if (ptThumbOut){ ptThumbOut.style.display='none'; }
+    }
+  }catch(e){
+    myCases.innerHTML = `<div class="hint">Liste yüklenemedi: ${e?.message || e}</div>`;
+  }
+}
+// Konsoldan/HTML'den çağrılabilsin
+window.loadPatientCases = loadPatientCases;
+
+
+loginConfirm?.addEventListener('click', () => {
+  const role = loginDialog.dataset.role === 'doctor' ? 'doctor' : 'patient';
+  const name = (loginName.value || '').trim();
+  const pin  = (loginPin.value  || '').trim();
+
+  // Basit demo doğrulaması
+  if (pin !== '0000') {
+    alert('Demo PIN yanlış. Lütfen 0000 girin.');
+    loginPin.focus();
+    return;
+  }
+  if (!name) {
+    alert('Lütfen ad girin.');
+    loginName.focus();
+    return;
+  }
+
+  // Demo kuralları (rol-ad eşleşmesi sadece yönlendirici amaçlı; gerçek doğrulama değil)
+  if (role === 'doctor' && name.toLowerCase() !== 'merve') {
+    if (!confirm('Demo: Doktor adı "Merve" olmalı. Yine de devam edilsin mi?')) return;
+  }
+  if (role === 'patient' && name.toLowerCase() !== 'ali y.' && name.toLowerCase() !== 'ali y') {
+    if (!confirm('Demo: Hasta adı "Ali Y." olmalı. Yine de devam edilsin mi?')) return;
+  }
+
+  // Oturum bilgilerini sakla (yalın SPA için yeterli)
+  try {
+    sessionStorage.setItem('vcts_role', role);
+    sessionStorage.setItem('vcts_name', name);
+  } catch {}
+
+  // Doğru panele geç
+  switchTo(role);
+  if (role === 'patient') {
+  loadPatientCases(name);
+}
+});
+
+// === Yenileme/derin link: #doctor / #patient veya session'dan geri yükle ===
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    const hash = (location.hash || '').toLowerCase();
+    const savedRole = sessionStorage.getItem('vcts_role');
+    const savedName = sessionStorage.getItem('vcts_name');
+
+  // Hash önceliklidir
+if (hash === '#patient') {
+  switchTo('patient');
+  // demo: isim kaydı yoksa "Ali Y." ile aç (prompt beklemeden)
+  const savedName = sessionStorage.getItem('vcts_name');
+  const name = (savedName && savedName.trim()) ? savedName.trim() : 'Ali Y.';
+  try { sessionStorage.setItem('vcts_name', name); sessionStorage.setItem('vcts_role', 'patient'); } catch {}
+  loadPatientCases(name);
+  return;
+}
+if (hash === '#doctor') {
+  switchTo('doctor');
+  return;
+}
+
+    // Session varsa ona göre aç
+    if (savedRole === 'doctor' || savedRole === 'patient') {
+      switchTo(savedRole);
+      if (savedRole === 'patient' && savedName) {
+  loadPatientCases(savedName);
+}
+      if (savedRole === 'doctor' && doctor && savedName) doctor.value = savedName;
+      return;
+    }
+
+    // olmazsa landing açık kalıyor
+    show(landing);
+  } catch {
+    show(landing);
+  }
+});
+
+
+  const baseUrl    = $('#baseUrl');
+  const deviceBadge= $('#deviceBadge');
+  const patient    = $('#patient');
+  const doctor     = $('#doctor');
+  const note       = $('#note');
+  const file       = $('#file');
+  const sendBtn    = $('#sendBtn');
+  const clearBtn   = $('#clearBtn');
+  const log        = $('#log');
+  const preview    = $('#preview');
+  const thumb      = $('#thumb');
+  const fname      = $('#fname');
+
+  const status   = $('#status');
+  const kv       = $('#kv');
+  const imgs     = $('#imgs');
+  const inplink  = $('#inplink');
+  const outlink  = $('#outlink');
+  const inppic   = $('#inppic');
+  const outpic   = $('#outpic');
+
+  // her zaman baseUrl inputunu tek doğruluk noktası olarak kullan
+  const getAPI = () => baseUrl.value.trim().replace(/\/+$/,'');
+
+  function setBadge(el, cls, text){ el.className = `badge ${cls}`; el.textContent = text; }
+  setBadge(status,'warn','Bekleniyor');
+
+  // Temizle
+  clearBtn.addEventListener('click', () => {
+    patient.value = doctor.value = note.value = '';
+    file.value = '';
+    preview.hidden = true;
+    thumb.style.display = 'none';
+    sendBtn.disabled = true;
+    log.textContent = 'Temizlendi.';
+    // sadece görünümü sıfırla, otomatik reset yok
+    kv.style.display = 'none';
+    imgs.style.display = 'none';
+    setBadge(status,'warn','Bekleniyor');
+  });
+
+  // Sağlık kontrolü (baseUrl değiştikçe tekrar dener)
+  async function checkHealth(){
+    try{
+      const res = await fetch(`${getAPI()}/health`);
+      const js  = await res.json();
+      const devTxt = (js.device === 0 || js.device === 'cuda:0' || js.device === 'GPU:0') ? 'GPU:0' : (js.device || 'bilinmiyor');
+      setBadge(deviceBadge, devTxt.startsWith('GPU') ? 'ok' : 'warn', devTxt);
+    }catch(e){
+      setBadge(deviceBadge,'bad','erişilemedi');
+    }
+  }
+  checkHealth();
+  baseUrl.addEventListener('change', checkHealth);
+
+  // Dosya seçimi + önizleme
+  file.addEventListener('change', () => {
+    const f = file.files?.[0];
+    preview.hidden = true;
+    thumb.style.display = 'none';
+    thumb.src = '';
+    fname.textContent = '';
+
+    if (!f) { sendBtn.disabled = true; return; }
+
+    const ok = /image\/(jpeg|png)/.test(f.type) || /\.(jpg|jpeg|png)$/i.test(f.name);
+    if (!ok) {
+      log.textContent = 'Sadece JPEG/PNG kabul edilir.';
+      file.value = '';
+      sendBtn.disabled = true;
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      thumb.onload = () => { thumb.style.display = 'block'; preview.hidden = false; };
+      thumb.onerror = () => { thumb.style.display = 'none'; preview.hidden = true; log.textContent='Önizleme yüklenemedi.'; };
+      thumb.src = e.target.result;
+      fname.textContent = `${f.name} • ${(f.size/1024).toFixed(1)} KB`;
+      sendBtn.disabled = !patient.value.trim();
+    };
+    reader.onerror = () => { preview.hidden = true; thumb.style.display = 'none'; log.textContent = 'Önizleme okunamadı.'; };
+    reader.readAsDataURL(f);
+  });
+
+  // Hasta adı -> buton aktivasyonu
+  patient.addEventListener('input', () => {
+    const hasFile = !!(file.files && file.files[0]);
+    sendBtn.disabled = !(patient.value.trim() && hasFile);
+    if (!patient.value.trim()) log.textContent = 'Hasta adı gerekli.';
+  });
+
+  // Gönderim
+  sendBtn.addEventListener('click', async (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+
+    const f = file.files?.[0];
+    if (!patient.value.trim()) { log.textContent = 'Hasta adı gerekli.'; return; }
+    if (!f) { log.textContent = 'Görsel seçilmedi.'; return; }
+
+    sendBtn.disabled = true;
+    setBadge(status, 'warn', 'İşleniyor…');
+    log.textContent = 'Yükleniyor ve tahmin yapılıyor…';
+    // yeni istek başlarken geçici gizle
+    kv.style.display = 'none';
+    imgs.style.display = 'none';
+
+    try {
+      const fd = new FormData();
+      fd.append('patient_name', patient.value.trim());
+      fd.append('doctor_name',  doctor.value.trim());
+      fd.append('note',         note.value.trim());
+      fd.append('file',         f);
+
+      const res = await fetch(`${getAPI()}/predict`, { method: 'POST', body: fd });
+
+      if (!res.ok) {
+        const t = await res.text();
+        setBadge(status, 'bad', 'Hata');
+        log.textContent = `Hata (HTTP ${res.status}): ${t}`;
+        return;
+      }
+
+      const js = await res.json();
+      // case durumu başlangıçta draft (publish edilene kadar)
+if (caseStatusBadge) { caseStatusBadge.className = 'badge warn'; caseStatusBadge.textContent = 'draft'; }
+
+      lastCaseId = js.case_id || null;
+lastPatientName = patient.value.trim() || null;
+
+// Publish butonunu durumuna göre aç
+if (publishBtn && lastCaseId) {
+  publishBtn.disabled = false;
+}
+      log.textContent = JSON.stringify(js, null, 2);  // sonucu log’da bırak
+
+      const conf = typeof js.conf === 'number'
+        ? js.conf
+        : Math.max(js.benign_conf ?? 0, js.malign_conf ?? 0);
+
+      setBadge(
+        status,
+        js.label === 'benign' ? 'ok' : 'bad',
+        `${(js.label || 'UNK').toUpperCase()} (${(conf * 100).toFixed(1)}%)`
+      );
+
+      // tablo
+      kv.innerHTML = '';
+      const rows = {
+        patient_id: js.patient_id,
+        case_id:    js.case_id,
+        image_id:   js.image_id,
+        benign_conf:(js.benign_conf * 100).toFixed(1) + '%',
+        malign_conf:(js.malign_conf * 100).toFixed(1) + '%',
+        input_path: js.input_path,
+        output_path:js.output_path,
+      };
+      for (const [k, v] of Object.entries(rows)) {
+        const kEl = document.createElement('div'); kEl.textContent = k; kEl.style.color = '#a8b3c3';
+        const vEl = document.createElement('div'); vEl.textContent = v; vEl.style.color = '#e2eaf5';
+        kv.appendChild(kEl); kv.appendChild(vEl);
+      }
+      kv.style.display = 'grid';
+
+      // görseller
+      inplink.href = js.input_url;  outlink.href = js.output_url;
+      inppic.src   = js.input_url;  outpic.src   = js.output_url;
+      imgs.style.display = 'block';
+
+      // yenile olursa geri getirebilmek için sakla (opsiyonel ama faydalı)
+      sessionStorage.setItem('vcts_last', JSON.stringify(js));
+
+    } catch (err) {
+      setBadge(status, 'bad', 'Hata');
+      log.textContent = 'Hata (JS): ' + (err?.message || err);
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  // === Hastaya Gönder (publish) ===
+publishBtn?.addEventListener('click', async () => {
+  if (!lastCaseId) {
+    alert('Önce tahmin yapıp bir vaka oluşturmalısınız.');
+    return;
+  }
+  const noteText = (docNote?.value || '').trim();
+
+  publishBtn.disabled = true;
+  const prevTxt = publishBtn.textContent;
+  publishBtn.textContent = 'Gönderiliyor…';
+
+  try {
+    const res = await fetch(`${getAPI()}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        case_id: lastCaseId,
+        doctor_note: noteText
+      })
+    });
+
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(`HTTP ${res.status}: ${t}`);
+    }
+
+    // Opsiyonel: publish API bir JSON döndürüyorsa al
+    const pub = await res.json().catch(() => ({}));
+
+    // UI geri bildirimleri
+    // --- Publish başarılı: Hasta panelini (varsa) tazele ---
+try {
+  const savedRole = sessionStorage.getItem('vcts_role');
+  const savedName = sessionStorage.getItem('vcts_name') || lastPatientName;
+
+  // Eğer hasta ismi biliniyorsa, listeyi yenile
+  if (savedName) {
+    loadPatientCases(savedName);
+  }
+  if (caseStatusBadge) { caseStatusBadge.className = 'badge ok'; caseStatusBadge.textContent = 'published'; }
+
+
+  // İstersen otomatik olarak hasta paneline geç (demoda etkileyici olur):
+  // switchTo('patient');
+
+} catch {}
+    setBadge(status, 'ok', 'Hastaya yayınlandı');
+    log.textContent = '✅ Vaka hastaya yayınlandı.'
+      + (lastPatientName ? ` (Hasta: ${lastPatientName})` : '');
+
+    // Publish sonrası butonu tekrar aktif bırakabiliriz;
+    // istersen tek seferlik olsun diye kapalı tut:
+    // publishBtn.disabled = true;
+
+  } catch (e) {
+    setBadge(status, 'bad', 'Yayın Hatası');
+    log.textContent = 'Yayın sırasında hata: ' + (e?.message || e);
+    publishBtn.disabled = false; // hata varsa tekrar denesin
+  } finally {
+    publishBtn.textContent = prevTxt;
+  }
+});
+
+
+ document.addEventListener('DOMContentLoaded', () => {
+  const hash = (location.hash || '').toLowerCase();
+  if (hash === '#patient') { switchTo('patient'); return; }
+  if (hash === '#doctor')  { switchTo('doctor');  return; }
+  // varsayılan: doktor paneli açık kalsın
+});
+</script>
+
+</body>
+</html>
+
+// run with in an external terminal: python -m http.server 5500 
+// then open: http://127.0.0.1:5500/ui.html

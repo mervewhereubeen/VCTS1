@@ -1,0 +1,15 @@
+fastapi==0.117.1
+uvicorn[standard]==0.30.6
+python-multipart==0.0.20
+pillow==11.3.0
+
+# YOLOv8-cls modeli için gerekli kütüphaneler
+torch==2.4.1+cpu ; sys_platform == 'linux'
+--extra-index-url https://download.pytorch.org/whl/cpu
+ultralytics==8.3.40
+timm==1.0.20
+
+sqlalchemy==2.0.43
+numpy==1.26.4
+torchvision==0.19.1+cpu
+opencv-python-headless==4.10.0.84

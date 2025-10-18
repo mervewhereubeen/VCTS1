@@ -1,0 +1,41 @@
+# Python bytecode / cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+*.log
+
+# Virtual envs
+.venv*/
+venv*/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+
+dist/
+build/
+
+
+*.db
+*.sqlite
+
+# Uygulamanın çalışma sırasında ürettiği dosyalar
+data/uploads/
+data/outputs/
+
+
+models/weights/best.pt
+
+# (Varsa) Node projeleri
+node_modules/
+
+data/
+uploads/
+outputs/
+models/weights/
+*.pt
+*.torchscript
